@@ -38,14 +38,13 @@ type Robot struct {
 
 	seq       int64
 	logCh     chan struct{}
-	token     string
 	heartbeat *timingwheel.Task
 	wg        *sync.WaitGroup
 
 	Rec chan *messages.GlideMessage
 }
 
-func NewRobot(wsUrl string, token string) (*Robot, error) {
+func NewRobot(wsUrl string) (*Robot, error) {
 
 	c, _, err := dialer.Dial(wsUrl, nil)
 	if err != nil {
@@ -58,7 +57,6 @@ func NewRobot(wsUrl string, token string) (*Robot, error) {
 
 	return &Robot{
 		seq:   1,
-		token: token,
 		logCh: make(chan struct{}),
 		Rec:   make(chan *messages.GlideMessage, 100),
 		wg:    &sync.WaitGroup{},
@@ -101,7 +99,7 @@ func (r *Robot) receive() {
 
 func (r *Robot) send() {
 
-	r.heartbeat = timer.After(time.Second * 20)
+	r.heartbeat = timer.After(time.Second * 28)
 
 	for {
 
@@ -123,7 +121,7 @@ END:
 func (r *Robot) write(message *messages.GlideMessage) error {
 
 	r.heartbeat.Cancel()
-	r.heartbeat = timer.After(time.Second * 20)
+	r.heartbeat = timer.After(time.Second * 28)
 
 	logger.I("write msg: %s", message)
 
@@ -205,7 +203,7 @@ type BotX struct {
 
 func NewBotX(wsUrl, token string) *BotX {
 
-	robot, err := NewRobot(wsUrl, token)
+	robot, err := NewRobot(wsUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -282,7 +280,7 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 			info := jwt_auth.Response{}
 			err = au.Data.Deserialize(&info)
 			if err != nil {
-				panic(err)
+				errCh <- err
 			}
 			b.token = info.Token
 			b.Id = info.Uid
@@ -292,6 +290,8 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 		}
 		close(log)
 	}()
+
+	_ = b.bot.Run()
 
 	err = <-errCh
 
