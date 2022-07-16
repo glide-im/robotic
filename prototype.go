@@ -1,4 +1,4 @@
-package robot
+package robotic
 
 import (
 	"errors"
@@ -16,8 +16,8 @@ type Options struct {
 // MessageHandler used to handle the message that robot received.
 type MessageHandler func(g gate.Gateway, m *messages.GlideMessage)
 
-// Prototype the prototype implementations of robot.
-type Prototype struct {
+// RobotConnection .
+type RobotConnection struct {
 	info    *gate.Info
 	gateway gate.Gateway
 
@@ -28,14 +28,14 @@ type Prototype struct {
 	handler MessageHandler
 }
 
-func NewRobot(g gate.Gateway, handler MessageHandler, opts *Options) (*Prototype, error) {
+func NewRobotConnection(g gate.Gateway, handler MessageHandler, opts *Options) (*RobotConnection, error) {
 	if g == nil {
 		return nil, errors.New("the gateway is nil")
 	}
 	if handler == nil {
 		return nil, errors.New("the handler is nil")
 	}
-	return &Prototype{
+	return &RobotConnection{
 		info: &gate.Info{
 			AliveAt:      time.Now().Unix(),
 			ConnectionAt: time.Now().Unix(),
@@ -47,15 +47,15 @@ func NewRobot(g gate.Gateway, handler MessageHandler, opts *Options) (*Prototype
 	}, nil
 }
 
-func (r *Prototype) SetID(id gate.ID) {
+func (r *RobotConnection) SetID(id gate.ID) {
 	r.info.ID = id
 }
 
-func (r *Prototype) IsRunning() bool {
+func (r *RobotConnection) IsRunning() bool {
 	return true
 }
 
-func (r *Prototype) EnqueueMessage(m *messages.GlideMessage) error {
+func (r *RobotConnection) EnqueueMessage(m *messages.GlideMessage) error {
 
 	select {
 	case r.messageCh <- m:
@@ -65,7 +65,7 @@ func (r *Prototype) EnqueueMessage(m *messages.GlideMessage) error {
 	return nil
 }
 
-func (r *Prototype) Exit() {
+func (r *RobotConnection) Exit() {
 	if r.info.ID != "" && r.gateway != nil {
 		_ = r.gateway.ExitClient(r.info.ID)
 	}
@@ -73,7 +73,7 @@ func (r *Prototype) Exit() {
 	r.gateway = nil
 }
 
-func (r *Prototype) Run() {
+func (r *RobotConnection) Run() {
 
 	r.exitSignal = make(chan struct{})
 	r.exitOnce = sync.Once{}
@@ -107,6 +107,6 @@ func (r *Prototype) Run() {
 	logger.D("robot %s running", r.info.ID)
 }
 
-func (r *Prototype) GetInfo() gate.Info {
+func (r *RobotConnection) GetInfo() gate.Info {
 	return *r.info
 }
