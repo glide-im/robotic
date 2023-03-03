@@ -1,6 +1,7 @@
 package robotic
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/glide-im/glide/pkg/auth"
 	"github.com/glide-im/glide/pkg/auth/jwt_auth"
@@ -123,7 +124,8 @@ func (r *Robot) write(message *messages.GlideMessage) error {
 	r.heartbeat.Cancel()
 	r.heartbeat = timer.After(time.Second * 28)
 
-	logger.I("write msg: %s", message)
+	m, _ := json.Marshal(message)
+	logger.I("write msg: %s", string(m))
 
 	encode, err := messages.JsonCodec.Encode(message)
 	if err != nil {
@@ -241,13 +243,13 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 		return err
 	}
 
-	authMsg := messages.NewMessage(b.bot.nextSeq(), messages.ActionApiAuth, &auth.Token{Token: b.token})
+	authMsg := messages.NewMessage(b.bot.nextSeq(), ActionApiAuth, &auth.Token{Token: b.token})
 	err = b.bot.Enqueue(authMsg)
 	if err != nil {
 		return err
 	}
 
-	log := make(chan *messages.GlideMessage)
+	authResultCh := make(chan *messages.GlideMessage)
 	authSeq := authMsg.GetSeq()
 
 	errCh := make(chan error, 3)
@@ -262,8 +264,8 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 
 		for m := range b.bot.Rec {
 			e := pool.Submit(func() {
-				if m.GetSeq() == authSeq {
-					log <- m
+				if m.GetSeq() == authSeq && authSeq > 0 {
+					authResultCh <- m
 					return
 				}
 				b.onReceive(m)
@@ -276,9 +278,13 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 
 	go func() {
 		select {
-		case au := <-log:
+		case authResult := <-authResultCh:
+			if authResult.Action == ActionApiFailed {
+				errCh <- errors.New(authResult.Data.String())
+				break
+			}
 			info := jwt_auth.Response{}
-			err = au.Data.Deserialize(&info)
+			err = authResult.Data.Deserialize(&info)
 			if err != nil {
 				errCh <- err
 			}
@@ -288,7 +294,8 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 		case <-timer.After(time.Second * 10).C:
 			errCh <- errors.New("login timeout")
 		}
-		close(log)
+		authSeq = -1
+		close(authResultCh)
 	}()
 
 	_ = b.bot.Run()
@@ -304,12 +311,12 @@ func (b *BotX) HandleChatMessage(h func(m *messages.GlideMessage, cm *messages.C
 
 func (b *BotX) onReceive(m *messages.GlideMessage) {
 	switch m.GetAction() {
-	case messages.ActionNotifyKickOut:
+	case ActionNotifyKickOut:
 		_ = b.bot.Close()
 		return
-	case messages.ActionChatMessageResend:
+	case ActionChatMessageResend:
 		fallthrough
-	case messages.ActionChatMessage:
+	case ActionChatMessage, ActionGroupMessage:
 		chatMsg := messages.ChatMessage{}
 		err := m.Data.Deserialize(&chatMsg)
 		if err != nil {
@@ -322,7 +329,7 @@ func (b *BotX) onReceive(m *messages.GlideMessage) {
 			Mid:  chatMsg.Mid,
 			From: b.Id,
 		}
-		_ = b.Send(m.From, messages.ActionAckRequest, ack)
+		_ = b.Send(m.From, ActionAckRequest, ack)
 
 		if b.cmH != nil {
 			b.cmH(m, &chatMsg)

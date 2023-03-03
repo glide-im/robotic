@@ -4,6 +4,7 @@ import "github.com/spf13/viper"
 
 type Config struct {
 	Bot struct {
+		Name  string
 		Ws    string
 		Token string
 	}

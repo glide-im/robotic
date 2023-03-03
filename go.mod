@@ -3,7 +3,8 @@ module github.com/glide-im/robotic
 go 1.18
 
 require (
-	github.com/glide-im/glide v1.4.0
+	github.com/glide-im/glide v1.4.7
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/spf13/viper v1.11.0
