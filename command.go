@@ -19,17 +19,15 @@ var commandNameRegexp = regexp.MustCompile(fmt.Sprintf("^[a-zA-Z]{1,%d}$", Comma
 
 type CommandHandler func(message *messages.ChatMessage, value string) error
 
-type CommandRole string
-
 type Command struct {
-	Role   CommandRole
+	Role   Role
 	Name   string
 	Handle CommandHandler
 
 	regex *regexp.Regexp
 }
 
-func NewCommand(role CommandRole, name string, handle CommandHandler) (*Command, error) {
+func NewCommand(role Role, name string, handle CommandHandler) (*Command, error) {
 
 	c := &Command{
 		Role:   role,
