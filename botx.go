@@ -1,12 +1,16 @@
 package robotic
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/glide-im/glide/pkg/auth"
 	"github.com/glide-im/glide/pkg/auth/jwt_auth"
 	"github.com/glide-im/glide/pkg/logger"
 	"github.com/glide-im/glide/pkg/messages"
+	"github.com/google/uuid"
 	"github.com/panjf2000/ants/v2"
+	"strings"
 	"time"
 )
 
@@ -20,6 +24,11 @@ type BotX struct {
 	Commands []*Command
 }
 
+type ResolvedChatMessage struct {
+	Origin      *messages.GlideMessage
+	ChatMessage *messages.ChatMessage
+}
+
 func NewBotX(wsUrl, token string) *BotX {
 
 	robot, err := NewRobot(wsUrl)
@@ -31,7 +40,6 @@ func NewBotX(wsUrl, token string) *BotX {
 		bot:   robot,
 		token: token,
 	}
-
 	return x
 }
 
@@ -39,20 +47,20 @@ func (b *BotX) Login() {
 
 }
 
-func (b BotX) Send(to string, action messages.Action, data interface{}) error {
+func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
 	m := messages.NewMessage(0, action, data)
 	m.To = to
 	return b.bot.Enqueue(m)
 }
 
-func (r *BotX) AddCommand(command *Command) error {
+func (b *BotX) AddCommand(command *Command) error {
 	if command.regex == nil {
 		err := command.compileRe()
 		if err != nil {
 			return err
 		}
 	}
-	r.Commands = append(r.Commands, command)
+	b.Commands = append(b.Commands, command)
 	return nil
 }
 
@@ -107,7 +115,7 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 	go func() {
 		select {
 		case authResult := <-authResultCh:
-			if authResult.Action == ActionApiFailed {
+			if authResult.Action == string(ActionApiFailed) {
 				errCh <- errors.New(authResult.Data.String())
 				break
 			}
@@ -160,7 +168,10 @@ func (b *BotX) onReceive(m *messages.GlideMessage) {
 		_ = b.Send(m.From, ActionAckRequest, ack)
 
 		for _, command := range b.Commands {
-			if command.handle(&chatMsg) {
+			if command.handle(&ResolvedChatMessage{
+				Origin:      m,
+				ChatMessage: &chatMsg,
+			}) {
 				return
 			}
 		}
@@ -172,4 +183,53 @@ func (b *BotX) onReceive(m *messages.GlideMessage) {
 	if b.h != nil {
 		b.h(m)
 	}
+}
+
+func (b *BotX) Reply(originMessage *ResolvedChatMessage, messageType int32, content interface{}) error {
+
+	from := b.Id
+	to := originMessage.ChatMessage.From
+	action := ActionChatMessage
+
+	contentFormat := "%s"
+
+	if originMessage.Origin.Action == string(ActionGroupMessage) {
+		action = ActionGroupMessage
+		to = originMessage.ChatMessage.To
+		contentFormat = "@" + originMessage.ChatMessage.From + " %s"
+	} else {
+		action = ActionChatMessage
+		to = originMessage.ChatMessage.From
+	}
+
+	uid, i := newUid()
+
+	cnt, ok := content.(string)
+	if !ok {
+		bs, err := json.Marshal(content)
+		if err != nil {
+			return err
+		}
+		cnt = string(bs)
+	}
+
+	chatMessage := &messages.ChatMessage{
+		CliMid:  uid,
+		Mid:     i,
+		From:    from,
+		To:      to,
+		Type:    messageType,
+		Content: fmt.Sprintf(contentFormat, cnt),
+		SendAt:  time.Now().UnixMilli(),
+	}
+
+	return b.Send(to, action, chatMessage)
+}
+
+func newUid() (string, int64) {
+
+	id2, _ := uuid.NewUUID()
+	idstr2 := strings.ReplaceAll(strings.ToUpper(id2.String()), "-", "")
+
+	return idstr2, int64(id2.ID())
 }

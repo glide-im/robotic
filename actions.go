@@ -1,34 +1,36 @@
 package robotic
 
+import "github.com/glide-im/glide/pkg/messages"
+
 const (
-	ActionHello               = "hello"
-	ActionHeartbeat           = "heartbeat"
-	ActionNotifyUnknownAction = "notify.unknown.action"
+	ActionHello               messages.Action = "hello"
+	ActionHeartbeat           messages.Action = "heartbeat"
+	ActionNotifyUnknownAction messages.Action = "notify.unknown.action"
 
-	ActionChatMessage       = "message.chat"
-	ActionChatMessageResend = "message.chat.resend"
-	ActionGroupMessage      = "message.group"
-	ActionMessageFailed     = "message.failed.send"
+	ActionChatMessage       messages.Action = "message.chat"
+	ActionChatMessageResend messages.Action = "message.chat.resend"
+	ActionGroupMessage      messages.Action = "message.group"
+	ActionMessageFailed     messages.Action = "message.failed.send"
 
-	ActionNotifyNeedAuth      = "notify.auth"
-	ActionNotifyKickOut       = "notify.kickout"
-	ActionNotifyNewContact    = "notify.contact"
-	ActionNotifyGroup         = "notify.group"
-	ActionNotifyAccountLogin  = "notify.login"
-	ActionNotifyAccountLogout = "notify.logout"
-	ActionNotifyError         = "notify.error"
+	ActionNotifyNeedAuth      messages.Action = "notify.auth"
+	ActionNotifyKickOut       messages.Action = "notify.kickout"
+	ActionNotifyNewContact    messages.Action = "notify.contact"
+	ActionNotifyGroup         messages.Action = "notify.group"
+	ActionNotifyAccountLogin  messages.Action = "notify.login"
+	ActionNotifyAccountLogout messages.Action = "notify.logout"
+	ActionNotifyError         messages.Action = "notify.error"
 
-	ActionAckRequest  = "ack.request"
-	ActionAckGroupMsg = "ack.group.msg"
-	ActionAckMessage  = "ack.message"
-	ActionAckNotify   = "ack.notify"
+	ActionAckRequest  messages.Action = "ack.request"
+	ActionAckGroupMsg messages.Action = "ack.group.msg"
+	ActionAckMessage  messages.Action = "ack.message"
+	ActionAckNotify   messages.Action = "ack.notify"
 
-	ActionApiAuth    = "api.auth"
-	ActionApiFailed  = "api.failed"
-	ActionApiSuccess = "api.success"
+	ActionApiAuth    messages.Action = "api.auth"
+	ActionApiFailed  messages.Action = "api.failed"
+	ActionApiSuccess messages.Action = "api.success"
 
-	ActionClientCustom = "message.cli"
+	ActionClientCustom messages.Action = "message.cli"
 
-	NotifyKickOut = "notify.kickout"
-	AckOffline    = "ack.offline"
+	NotifyKickOut messages.Action = "notify.kickout"
+	AckOffline    messages.Action = "ack.offline"
 )
