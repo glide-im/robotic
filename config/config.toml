@@ -1,4 +1,9 @@
 [Bot]
 Name = "bot"
 Token = ""
-Ws = ""
+Ws = "wss://intercom.ink/ws"
+Email = ""
+Password = ""
+
+[Api]
+BaseUrl = "https://intercom.ink"

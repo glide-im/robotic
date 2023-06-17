@@ -4,22 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/glide-im/glide/pkg/auth"
-	"github.com/glide-im/glide/pkg/auth/jwt_auth"
 	"github.com/glide-im/glide/pkg/logger"
 	"github.com/glide-im/glide/pkg/messages"
 	"github.com/google/uuid"
 	"github.com/panjf2000/ants/v2"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type BotX struct {
-	bot   *Robot
-	token string
-	Id    string
-	h     func(m *messages.GlideMessage)
-	cmH   func(m *messages.GlideMessage, cm *messages.ChatMessage)
+	bot *Robot
+	Id  string
+	h   func(m *messages.GlideMessage)
+	cmH func(m *messages.GlideMessage, cm *messages.ChatMessage)
 
 	Commands []*Command
 }
@@ -29,7 +27,7 @@ type ResolvedChatMessage struct {
 	ChatMessage *messages.ChatMessage
 }
 
-func NewBotX(wsUrl, token string) *BotX {
+func NewBotX(wsUrl string) *BotX {
 
 	robot, err := NewRobot(wsUrl)
 	if err != nil {
@@ -37,14 +35,18 @@ func NewBotX(wsUrl, token string) *BotX {
 	}
 
 	x := &BotX{
-		bot:   robot,
-		token: token,
+		bot: robot,
 	}
 	return x
 }
 
-func (b *BotX) Login() {
-
+func (b *BotX) RunAndLogin(email, password string, h func(m *messages.GlideMessage)) error {
+	response, err := Login(email, password)
+	if err != nil {
+		return err
+	}
+	b.Id = strconv.FormatInt(response.Uid, 10)
+	return b.Start(response.Credential, h)
 }
 
 func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
@@ -64,7 +66,7 @@ func (b *BotX) AddCommand(command *Command) error {
 	return nil
 }
 
-func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
+func (b *BotX) Start(credential *Credential, h func(m *messages.GlideMessage)) error {
 	b.h = h
 
 	pool, err := ants.NewPool(1_0000,
@@ -79,7 +81,7 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 		return err
 	}
 
-	authMsg := messages.NewMessage(b.bot.nextSeq(), ActionApiAuth, &auth.Token{Token: b.token})
+	authMsg := messages.NewMessage(b.bot.nextSeq(), messages.ActionAuthenticate, credential)
 	err = b.bot.Enqueue(authMsg)
 	if err != nil {
 		return err
@@ -115,20 +117,13 @@ func (b *BotX) Start(h func(m *messages.GlideMessage)) error {
 	go func() {
 		select {
 		case authResult := <-authResultCh:
-			if authResult.Action == string(ActionApiFailed) {
+			if authResult.Action == messages.ActionNotifyError {
 				errCh <- errors.New(authResult.Data.String())
 				break
 			}
-			info := jwt_auth.Response{}
-			err = authResult.Data.Deserialize(&info)
-			if err != nil {
-				errCh <- err
-			}
-			b.token = info.Token
-			b.Id = info.Uid
-			logger.D("login success: %s", info.Uid)
+			logger.D("messaging server auth success")
 		case <-timer.After(time.Second * 10).C:
-			errCh <- errors.New("login timeout")
+			errCh <- errors.New("messaging server auth timeout")
 		}
 		authSeq = -1
 		close(authResultCh)

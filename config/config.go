@@ -2,15 +2,26 @@ package config
 
 import "github.com/spf13/viper"
 
+var config *Config
+
 type Config struct {
+	Api struct {
+		BaseUrl string
+	}
 	Bot struct {
-		Name  string
-		Ws    string
-		Token string
+		Name     string
+		Ws       string
+		Token    string
+		Email    string
+		Password string
 	}
 }
 
 func GetConfig() (*Config, error) {
+
+	if config != nil {
+		return config, nil
+	}
 
 	viper.SetConfigName("config.toml")
 	viper.SetConfigType("toml")
@@ -30,5 +41,6 @@ func GetConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	config = &c
 	return &c, nil
 }

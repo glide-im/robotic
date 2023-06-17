@@ -80,7 +80,13 @@ func (r *Robot) receive() {
 			continue
 		}
 
-		logger.I("received: %s", m)
+		b, _ := json.Marshal(&m)
+		logger.I("received: %s", string(b))
+
+		if m.Action == messages.ActionHeartbeat {
+			_ = r.Enqueue(messages.NewMessage(0, messages.ActionHeartbeat, nil))
+			return
+		}
 
 		select {
 		case r.Rec <- m:
@@ -97,7 +103,7 @@ func (r *Robot) receive() {
 
 func (r *Robot) send() {
 
-	r.heartbeat = timer.After(time.Second * 28)
+	r.heartbeat = timer.After(time.Second * 60)
 
 	for {
 
@@ -119,7 +125,7 @@ END:
 func (r *Robot) write(message *messages.GlideMessage) error {
 
 	r.heartbeat.Cancel()
-	r.heartbeat = timer.After(time.Second * 28)
+	r.heartbeat = timer.After(time.Second * 60)
 
 	m, _ := json.Marshal(message)
 	logger.I("write msg: %s", string(m))

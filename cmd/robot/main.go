@@ -14,7 +14,7 @@ func main() {
 		panic(err)
 	}
 
-	botX := robotic.NewBotX(conf.Bot.Ws, conf.Bot.Token)
+	botX := robotic.NewBotX(conf.Bot.Ws)
 	botX.HandleChatMessage(func(m *messages.GlideMessage, cm *messages.ChatMessage) {
 		logger.I("handler chat message >> %s", m.GetAction())
 	})
@@ -22,6 +22,6 @@ func main() {
 	_ = botX.AddCommand(robotic.CommandPing(botX))
 	_ = botX.AddCommand(robotic.CommandHelp(botX))
 
-	err = botX.Start(nil)
+	err = botX.RunAndLogin("", "", nil)
 	panic(err)
 }
