@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/glide-im/glide/pkg/messages"
-	"github.com/glide-im/robotic/config"
 	"io"
 	"io/ioutil"
 	"net/http"
 )
+
+var ApiBaseUrl string
 
 var token string
 
@@ -33,6 +34,11 @@ type Credential struct {
 	Version    int64  `json:"version,omitempty"`
 	Credential string `json:"credential,omitempty"`
 }
+
+type TicketResponse struct {
+	Ticket string `json:"ticket"`
+}
+
 type AuthResponse struct {
 	Token      string      `json:"token"`
 	Servers    []string    `json:"servers"`
@@ -79,13 +85,27 @@ func RequestApi(method string, url string, body interface{}) (*Response, error) 
 	return &r, nil
 }
 
-func Login(account, password string) (*AuthResponse, error) {
-	c, err := config.GetConfig()
+func RequestSessionTicket(to string) (string, error) {
+	url := fmt.Sprintf("%s/api/session/ticket", ApiBaseUrl)
+	resp, err := RequestApi("POST", url, struct {
+		To string
+	}{
+		to,
+	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	r := TicketResponse{}
+	err = json.Unmarshal(resp.Data.bytes, &r)
+	if err != nil {
+		return "", err
+	}
+	return r.Ticket, nil
+}
 
-	url := fmt.Sprintf("%s/api/auth/signin_v2", c.Api.BaseUrl)
+func Login(account, password string) (*AuthResponse, error) {
+
+	url := fmt.Sprintf("%s/api/auth/signin_v2", ApiBaseUrl)
 	resp, err := RequestApi("POST", url, struct {
 		Device   int
 		Password string
@@ -98,6 +118,7 @@ func Login(account, password string) (*AuthResponse, error) {
 	}
 	auth := AuthResponse{}
 	err = json.Unmarshal(resp.Data.bytes, &auth)
+	token = auth.Token
 	if err != nil {
 		return nil, err
 	}

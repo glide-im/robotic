@@ -15,6 +15,9 @@ import (
 
 type BotX struct {
 	bot *Robot
+
+	tickets map[string]string
+
 	Id  string
 	h   func(m *messages.GlideMessage)
 	cmH func(m *messages.GlideMessage, cm *messages.ChatMessage)
@@ -35,7 +38,8 @@ func NewBotX(wsUrl string) *BotX {
 	}
 
 	x := &BotX{
-		bot: robot,
+		bot:     robot,
+		tickets: map[string]string{},
 	}
 	return x
 }
@@ -50,9 +54,33 @@ func (b *BotX) RunAndLogin(email, password string, h func(m *messages.GlideMessa
 }
 
 func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
-	m := messages.NewMessage(0, action, data)
-	m.To = to
-	return b.bot.Enqueue(m)
+	go func() {
+		defer func() {
+			e := recover()
+			if e != nil {
+				logger.E("send message error, %v", e)
+			}
+		}()
+		m := messages.NewMessage(0, action, data)
+		if action == messages.ActionChatMessage || action == messages.ActionGroupMessage {
+			s, ok := b.tickets[to]
+			if !ok {
+				ticket, err := RequestSessionTicket(to)
+				if err != nil {
+					return
+				}
+				b.tickets[to] = ticket
+				s = ticket
+			}
+			m.Ticket = s
+		}
+		m.To = to
+		err := b.bot.Enqueue(m)
+		if err != nil {
+			logger.ErrE("enqueue message error", err)
+		}
+	}()
+	return nil
 }
 
 func (b *BotX) AddCommand(command *Command) error {

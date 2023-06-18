@@ -7,5 +7,5 @@ func TestLogin(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	t.Log(a.Token, a.NickName, a.Credentials)
+	t.Log(a.Token, a.NickName, a.Credential)
 }

@@ -164,7 +164,6 @@ func (r *Robot) Run() error {
 
 	go func() {
 		defer func() {
-			r.wg.Done()
 			err := recover()
 			if err != nil {
 				logger.ErrE("send panic", err.(error))
@@ -177,7 +176,6 @@ func (r *Robot) Run() error {
 	go func() {
 
 		defer func() {
-			r.wg.Done()
 			err := recover()
 			if err != nil {
 				logger.ErrE("receive panic", err.(error))

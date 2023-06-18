@@ -5,9 +5,6 @@ import "github.com/spf13/viper"
 var config *Config
 
 type Config struct {
-	Api struct {
-		BaseUrl string
-	}
 	Bot struct {
 		Name     string
 		Ws       string
