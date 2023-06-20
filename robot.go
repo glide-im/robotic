@@ -63,11 +63,11 @@ func NewRobot(wsUrl string) (*Robot, error) {
 	}, nil
 }
 
-func (r *Robot) receive() {
-
+func (r *Robot) receive() error {
+	var err error
 	for {
-
-		bytes, err := r.co.Read()
+		var bytes []byte
+		bytes, err = r.co.Read()
 		if err != nil {
 			logger.ErrE("receive message error", err)
 			break
@@ -85,7 +85,6 @@ func (r *Robot) receive() {
 
 		if m.Action == messages.ActionHeartbeat {
 			_ = r.Enqueue(messages.NewMessage(0, messages.ActionHeartbeat, nil))
-			return
 		}
 
 		select {
@@ -99,27 +98,33 @@ func (r *Robot) receive() {
 		}
 	}
 	_ = r.Close()
+	return err
 }
 
-func (r *Robot) send() {
+func (r *Robot) send() error {
 
 	r.heartbeat = timer.After(time.Second * 60)
 
+	var err error
 	for {
 
 		select {
 		case <-r.heartbeat.C:
 			m := messages.NewMessage(0, messages.ActionHeartbeat, nil)
-			if r.write(m) != nil {
+			err = r.write(m)
+			if err != nil {
 				goto END
 			}
 		case m := <-r.msg:
-			if r.write(m) != nil {
+			err = r.write(m)
+			if err != nil {
 				goto END
 			}
 		}
 	}
 END:
+	_ = r.Close()
+	return err
 }
 
 func (r *Robot) write(message *messages.GlideMessage) error {
@@ -164,25 +169,34 @@ func (r *Robot) Run() error {
 
 	go func() {
 		defer func() {
+			r.wg.Done()
 			err := recover()
 			if err != nil {
 				logger.ErrE("send panic", err.(error))
 			}
 		}()
 
-		r.send()
+		r.wg.Add(1)
+		err := r.send()
+		if err != nil {
+			logger.ErrE("send error", err)
+		}
 	}()
 
 	go func() {
-
 		defer func() {
+			r.wg.Done()
 			err := recover()
 			if err != nil {
 				logger.ErrE("receive panic", err.(error))
 			}
 		}()
 
-		r.receive()
+		r.wg.Add(1)
+		err := r.receive()
+		if err != nil {
+			logger.ErrE("receive error", err)
+		}
 	}()
 
 	return nil

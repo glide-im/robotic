@@ -50,7 +50,7 @@ func (b *BotX) RunAndLogin(email, password string, h func(m *messages.GlideMessa
 		return err
 	}
 	b.Id = strconv.FormatInt(response.Uid, 10)
-	return b.Start(response.Credential, h)
+	return b.start(response.Credential, h)
 }
 
 func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
@@ -94,7 +94,7 @@ func (b *BotX) AddCommand(command *Command) error {
 	return nil
 }
 
-func (b *BotX) Start(credential *Credential, h func(m *messages.GlideMessage)) error {
+func (b *BotX) start(credential *Credential, h func(m *messages.GlideMessage)) error {
 	b.h = h
 
 	pool, err := ants.NewPool(1_0000,
