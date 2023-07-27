@@ -2,7 +2,6 @@ package robotic
 
 import (
 	"github.com/glide-im/glide/pkg/messages"
-	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -12,7 +11,9 @@ func TestTeg(t *testing.T) {
 		t.Log("value", value)
 		return nil
 	})
-	assert.Nil(t, err)
+	if err != nil {
+		panic(err)
+	}
 	t.Log(cmd.handle(&ResolvedChatMessage{
 		Origin: &messages.GlideMessage{},
 		ChatMessage: &messages.ChatMessage{

@@ -46,11 +46,17 @@ func NewBotX(wsUrl string) *BotX {
 
 func (b *BotX) RunAndLogin(email, password string, h func(m *messages.GlideMessage)) error {
 	response, err := Login(email, password)
-	if err != nil {
-		return err
-	}
-	b.Id = strconv.FormatInt(response.Uid, 10)
-	return b.start(response.Credential, h)
+	return b.handleAuthResponse(response, err, h)
+}
+
+func (b *BotX) LoginByToken(token string, h func(m *messages.GlideMessage)) error {
+	response, err := TokenLogin(token)
+	return b.handleAuthResponse(response, err, h)
+}
+
+func (b *BotX) LoginGust(h func(m *messages.GlideMessage)) error {
+	response, err := GuestLogin()
+	return b.handleAuthResponse(response, err, h)
 }
 
 func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
@@ -58,7 +64,7 @@ func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
 		defer func() {
 			e := recover()
 			if e != nil {
-				logger.E("send message error, %v", e)
+				logger.E("send message unexpected error occurred: %v", e)
 			}
 		}()
 		m := messages.NewMessage(0, action, data)
@@ -67,6 +73,7 @@ func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
 			if !ok {
 				ticket, err := RequestSessionTicket(to)
 				if err != nil {
+					logger.ErrE("get ticket failed: ", err)
 					return
 				}
 				b.tickets[to] = ticket
@@ -81,6 +88,14 @@ func (b *BotX) Send(to string, action messages.Action, data interface{}) error {
 		}
 	}()
 	return nil
+}
+
+func (b *BotX) handleAuthResponse(response *AuthResponse, err error, h func(m *messages.GlideMessage)) error {
+	if err != nil {
+		return err
+	}
+	b.Id = strconv.FormatInt(response.Uid, 10)
+	return b.start(response.Credential, h)
 }
 
 func (b *BotX) AddCommand(command *Command) error {

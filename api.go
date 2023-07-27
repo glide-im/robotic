@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/glide-im/glide/pkg/messages"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -107,11 +108,49 @@ func Login(account, password string) (*AuthResponse, error) {
 
 	url := fmt.Sprintf("%s/api/auth/signin_v2", ApiBaseUrl)
 	resp, err := RequestApi("POST", url, struct {
-		Device   int
-		Password string
-		Email    string
+		Device   int    `json:"device,omitempty"`
+		Password string `json:"password,omitempty"`
+		Email    string `json:"email,omitempty"`
 	}{
 		0, password, account,
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth := AuthResponse{}
+	err = json.Unmarshal(resp.Data.bytes, &auth)
+	token = auth.Token
+	if err != nil {
+		return nil, err
+	}
+	return &auth, nil
+}
+
+func TokenLogin(token string) (*AuthResponse, error) {
+	url := fmt.Sprintf("%s/api/auth/token", ApiBaseUrl)
+	resp, err := RequestApi("POST", url, struct {
+		Token string `json:"token,omitempty"`
+	}{
+		token,
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth := AuthResponse{}
+	err = json.Unmarshal(resp.Data.bytes, &auth)
+	token = auth.Token
+	if err != nil {
+		return nil, err
+	}
+	return &auth, nil
+}
+
+func GuestLogin() (*AuthResponse, error) {
+	url := fmt.Sprintf("%s/api/auth/guest", ApiBaseUrl)
+	resp, err := RequestApi("POST", url, struct {
+		Nickname string `json:"nickname,omitempty"`
+	}{
+		"guest_" + uuid.New().String(),
 	})
 	if err != nil {
 		return nil, err
